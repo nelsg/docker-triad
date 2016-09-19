@@ -72,15 +72,20 @@ docker-compose scale worker=3
 Vérifier que tout est OK et que les esclaves se connectent au maître
 
 ```
-sudo docker-compose logs worker
+docker-compose logs worker
 ```
 
+Redémarrer les esclaves s'ils n'arrivent pas à se connecter
+
+```
+docker-compose restart worker
+```
 
 Références
 ----------
 
 * [https://github.com/docker/dockercloud-haproxy]
 * [https://github.com/vegasbrianc/docker-compose-demo]
-* [https://github.com/eea/eea.docker.jenkins/blob/master/docker-compose.yml]
+* [https://github.com/eea/eea.docker.jenkins/]
 * jenkins-master: [https://github.com/eea/eea.docker.jenkins.master]
 * jenkins-slave: [https://github.com/eea/eea.docker.jenkins.slave-eea]
