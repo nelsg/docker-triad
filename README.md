@@ -42,7 +42,7 @@ sample-02 : docker-compose scale
 Même application que le _sample-01_, mais haproxy est installé en tant que
 load-balancer et expose le port 80.
 
-Pour le lancer, se placer dans le répertoire _sample-01_:
+Pour le lancer, se placer dans le répertoire _sample-02_:
 
 ```
 docker-compose up
@@ -54,32 +54,65 @@ Pour créer 5 nouveaux noeuds (en tout 6):
 docker-compose scale web=6
 ```
 
-sample-03 : docker-compose jenkins+slaves
------------------------------------------
+sample-03 : docker-machine + swarm + docker-compose
+---------------------------------------------------
 
-Pour lancer jenkins avec un esclave, se placer dans le répertoire _sample-03_:
+Exactement le même code que le _sample-02_. Pour le lancer, se placer dans le répertoire _sample-03_:
 
-```
-docker-compose up
-```
+### Création du cluster Swarm
 
-Mettre 3 esclaves:
+Création d'un hôte qui va servire de service discovery :
 
 ```
-docker-compose scale worker=3
+docker-machine create -d virtualbox keystore
+eval "$(docker-machine env keystore)"
+docker run -d -p "8500:8500" -h "consul" progrium/consul -server -bootstrap
 ```
 
-Vérifier que tout est OK et que les esclaves se connectent au maître
+Création de deux noeuds dans mon cluster swarm, dont un master :
 
 ```
-docker-compose logs worker
+docker-machine create -d virtualbox --swarm --swarm-master \
+  --swarm-discovery="consul://$(docker-machine ip keystore):8500" \
+  --engine-opt="cluster-store=consul://$(docker-machine ip keystore):8500" \
+  --engine-opt="cluster-advertise=eth1:2376" \
+  swarm-master
+
+docker-machine create -d virtualbox --swarm \
+  --swarm-discovery="consul://$(docker-machine ip keystore):8500" \
+  --engine-opt="cluster-store=consul://$(docker-machine ip keystore):8500" \
+  --engine-opt="cluster-advertise=eth1:2376" \
+  swarm-01
 ```
 
-Redémarrer les esclaves s'ils n'arrivent pas à se connecter
+Pour lister les machines:
 
 ```
-docker-compose restart worker
+docker-machine ls
 ```
+
+### Création du réseau 'overlay'
+
+On le créé uniquement sur un noeud :
+
+```
+eval $(docker-machine env --swarm swarm-master)
+docker network create --driver overlay --subnet=10.0.9.0/24 swarm-net
+```
+
+L'afficher :
+
+```
+docker network ls
+```
+
+Si on se connecte sur un autre noeud, le réseau doit également être visible :
+
+```
+eval $(docker-machine env --swarm swarm-01)
+docker network ls
+```
+
 
 Références
 ----------
@@ -87,5 +120,4 @@ Références
 * [https://github.com/docker/dockercloud-haproxy]
 * [https://github.com/vegasbrianc/docker-compose-demo]
 * [https://github.com/eea/eea.docker.jenkins/]
-* jenkins-master: [https://github.com/eea/eea.docker.jenkins.master]
-* jenkins-slave: [https://github.com/eea/eea.docker.jenkins.slave-eea]
+* [https://docs.docker.com/engine/userguide/networking/get-started-overlay/]

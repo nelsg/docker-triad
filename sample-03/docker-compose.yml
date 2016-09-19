@@ -1,66 +1,37 @@
-# Jenkins master ready to run Docker image (Jenkins Swarm Plugin). Dockerfile: https://hub.docker.com/r/eeacms/jenkins-master/~/dockerfile/
-master:
-  image: eeacms/jenkins-master:2.0
-  restart: always
-  ports:
-  - "80:8080"
-  - "50000:50000"
-  volumes:
-  - /etc/localtime:/etc/localtime:ro
-  volumes_from:
-  - master_data
-  links:
-  - postfix
-  environment:
-  - JAVA_OPTS=-Xmx2048m
+version: '2'
+services:
+  web:
+    build: .
+    command: python app.py
+    ports:
+      - 5000
+    volumes:
+      - .:/code
+    networks:
+      - front
+      - back
+    links:
+      - redis
 
-master_data:
-  image: busybox
-  volumes:
-  - /var/jenkins_home
-  command: ["chown", "-v", "-R", "1000:1000", "/var/jenkins_home"]
+  redis:
+    image: redis:latest
+    networks:
+      - back
 
-# Jenkins (EEA) slave ready to run Docker image (Jenkins Swarm Plugin). Dockerfile: https://hub.docker.com/r/eeacms/jenkins-slave-eea/~/dockerfile/
-worker:
-  image: eeacms/jenkins-slave-eea:2.0
-  restart: always
-  volumes:
-  - /etc/localtime:/etc/localtime:ro
-  volumes_from:
-  - worker_data
-  links:
-  - postgres
-  environment:
-  - JAVA_OPTS=-Xmx2048m
-  - JENKINS_NAME=worker
-  - JENKINS_RETRY=10
-  env_file:
-  - .secret
+  lb:
+    image: dockercloud/haproxy
+    ports:
+      - 5000:80
+    links:
+      - web
+    networks:
+      - front
+      - back
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
 
-worker_data:
-  image: busybox
-  volumes:
-  - /var/jenkins_home/worker
-  command: ["chown", "-v", "-R", "1000:1000", "/var/jenkins_home/worker"]
-
-# Postfix SMTP only with relay support. Dockerfile: https://hub.docker.com/r/eeacms/postfix/~/dockerfile/
-postfix:
-  image: eeacms/postfix:eionet
-  restart: always
-  volumes:
-  - /etc/localtime:/etc/localtime:ro
-  environment:
-  - MTP_HOST=ci.eionet.europa.eu
-  env_file:
-  - .secret
-
-# PostgreSQL with replication support (ZODB RelStorage ready). Dockerfile: https://hub.docker.com/r/eeacms/postgres/~/dockerfile/
-postgres:
-  image: eeacms/postgres:9.5
-  restart: always
-  volumes:
-  - /etc/localtime:/etc/localtime:ro
-  environment:
-  - POSTGRES_DBNAME=datafs zasync
-  - POSTGRES_DBUSER=zope
-  - POSTGRES_DBPASS=zope
+networks:
+  front:
+    driver: overlay
+  back:
+    driver: overlay
