@@ -44,6 +44,7 @@ function configure_swarm_node() {
   load_image "../img/registrator.img" "gliderlabs/registrator:v6"
   load_image "../img/redis.img" "redis:latest"
   load_image "../img/webapp.img" "webapp:latest"
+  load_image "../img/nginx-lb.img" "nginx/lb:latest"
   docker run -d \
     --name=registrator \
     -h $2 \

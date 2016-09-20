@@ -1,7 +1,7 @@
 version: '2'
 services:
   lb:
-    # build: .
+    build: .
     image: nginx/lb
     container_name: lb
     ports:
