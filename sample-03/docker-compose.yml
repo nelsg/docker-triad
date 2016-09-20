@@ -1,12 +1,23 @@
 version: '2'
 services:
+  lb:
+    image: dockercloud/haproxy
+    ports:
+      - 5000:80
+    links:
+      - web
+    networks:
+      - front
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+
   web:
-    build: .
+    build:
+      context: ../app
+    image: webapp
     command: python app.py
     ports:
       - 5000
-    volumes:
-      - .:/code
     networks:
       - front
       - back
@@ -17,18 +28,6 @@ services:
     image: redis:latest
     networks:
       - back
-
-  lb:
-    image: dockercloud/haproxy
-    ports:
-      - 5000:80
-    links:
-      - web
-    networks:
-      - front
-      - back
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
 
 networks:
   front:

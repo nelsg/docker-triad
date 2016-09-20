@@ -1,0 +1,38 @@
+version: '2'
+services:
+  lb:
+    build: .
+    image: nginx/lb
+    container_name: lb
+    ports:
+      - 80:80
+    environment:
+      - constraint:node==master
+      - APP_NAME=webapp
+      - CONSUL_URL=${KV_IP}:8500
+    networks:
+      - net
+    depends_on:
+      - web
+
+  web:
+    build:
+      context: ../app
+    image: webapp
+    command: python app.py
+    ports:
+      - 5000
+    networks:
+      - net
+    depends_on:
+      - redis
+
+  redis:
+    image: redis:latest
+    container_name: redis
+    networks:
+      - net
+
+networks:
+  net:
+    driver: overlay
