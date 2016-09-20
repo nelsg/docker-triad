@@ -1,15 +1,19 @@
 version: '2'
 services:
   lb:
-    image: dockercloud/haproxy
+    build: .
+    image: nginx/lb
+    container_name: lb
     ports:
-      - 5000:80
-    links:
-      - web
+      - 80:80
+    environment:
+      - constraint:node==master
+      - APP_NAME=webapp
+      - CONSUL_URL=${KV_IP}:8500
     networks:
-      - front
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - net
+    depends_on:
+      - web
 
   web:
     build:
@@ -19,18 +23,16 @@ services:
     ports:
       - 5000
     networks:
-      - front
-      - back
-    links:
+      - net
+    depends_on:
       - redis
 
   redis:
     image: redis:latest
+    container_name: redis
     networks:
-      - back
+      - net
 
 networks:
-  front:
-    driver: overlay
-  back:
+  net:
     driver: overlay
