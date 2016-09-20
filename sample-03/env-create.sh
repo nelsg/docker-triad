@@ -52,6 +52,8 @@ function configure_swarm_node() {
     consul://$3:8500
 }
 
+START_TIME=$SECONDS
+
 #
 echo Create image backup
 if [ ! -d ../img ]; then
@@ -104,3 +106,6 @@ echo Create overlay network on Swarm cluster
 eval $(docker-machine env --swarm master)
 docker network create --driver overlay --subnet=10.0.9.0/24 my-overlay
 docker network ls
+
+ELAPSED_TIME=$(($SECONDS - $START_TIME))
+echo "Elapsed time=${ELAPSED_TIME}s"
