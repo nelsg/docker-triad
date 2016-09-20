@@ -29,9 +29,7 @@ Exemples
 * 01: Lancement de redis et webapp avec docker-compose
 * 02: Idem 01 avec un load-balancer avec prise en compte dynamique des nouveaux
 conteneurs
-* 03: Idem 02 mais sur un cluster Swarm (n'utilise pas tous les noeuds, et c'est
-normal)
-* 04: Idem 02 avec cette fois l'utilisation d'un service discovery pour
+* 03: Idem 02 avec cette fois l'utilisation d'un service discovery pour
 configurer le load-balancer
 
 Références
