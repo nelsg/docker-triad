@@ -3,7 +3,10 @@ Construction d'un cluster Swarm puis load-balancer, webapp et base redis
 
 > Vous pouvez utiliser le script `env-create.sh` pour créer les machines.
 
-> ATTENTION: dans ce cas il faut définir manuellement les variable KV_IP, MASTER_IP et SLAVE1_IP
+> ATTENTION: dans ce cas il faut définir manuellement les variable KV_IP:
+```
+export KV_IP=$(docker-machine ip consul)
+```
 
 hôtes utilisés:
 * _consul_: il embarque le conteneur _consul-server_, un 'key-store' qui est

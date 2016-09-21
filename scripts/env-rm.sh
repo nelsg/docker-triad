@@ -3,4 +3,4 @@
 #    remove Swarm cluster
 
 eval $(docker-machine env -u)
-docker-machine rm -f -y consul master slave1
+docker-machine ls | grep virtualbox | awk '{print $1}' | xargs docker-machine rm -f -y

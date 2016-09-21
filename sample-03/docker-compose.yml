@@ -7,7 +7,7 @@ services:
     ports:
       - 80:80
     environment:
-      - constraint:node==master
+      - constraint:node==master*
       - APP_NAME=webapp
       - CONSUL_URL=${KV_IP}:8500
     networks:

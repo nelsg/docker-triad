@@ -1,7 +1,9 @@
 #!/bin/sh
-# usage: ./env-create.sh
+# usage: ./env-create.sh $1 $2
 #    create a key-value store (consul) and a Swarm cluster with one master and
 #    one slave
+# $1: number of masters
+# $2: number of slaves
 
 # Save image from current local registry to local file
 # $1: image:tag name
@@ -37,8 +39,6 @@ function load_image() {
 
 # Configure a Swarm by installing 'registrator' and needed images
 # $1 machine name
-# $2 machine ip
-# $3 consul ip
 function configure_swarm_node() {
   eval $(docker-machine env $1)
   load_image "../img/registrator.img" "gliderlabs/registrator:v6"
@@ -47,10 +47,37 @@ function configure_swarm_node() {
   load_image "../img/nginx-lb.img" "nginx/lb:latest"
   docker run -d \
     --name=registrator \
-    -h $2 \
+    -h $(docker-machine ip $1) \
     --volume=/var/run/docker.sock:/tmp/docker.sock \
     gliderlabs/registrator:v6 \
-    consul://$3:8500
+    consul://$(docker-machine ip consul):8500
+}
+
+# Create a swarm node
+# $1: 1=master else slave
+# $2: id
+function create_and_configure_swarm_node()
+{
+  # Build docker-machine options and node name
+  SWARM_NAME="slave"
+  SWARM_OPTS="--swarm"
+  if [[ $1 == 1 ]]; then
+    SWARM_NAME="master"
+    SWARM_OPTS="--swarm --swarm-master"
+  fi
+  SWARM_NAME=$SWARM_NAME$2
+  echo "Create node $SWARM_NAME"
+  eval "$(docker-machine env -u)"
+  docker-machine create \
+    -d virtualbox \
+      --virtualbox-memory=512 \
+      --virtualbox-disk-size=5000 \
+    $SWARM_OPTS \
+    --swarm-discovery="consul://$(docker-machine ip consul):8500" \
+    --engine-opt="cluster-store=consul://$(docker-machine ip consul):8500" \
+    --engine-opt="cluster-advertise=eth1:2376" \
+    $SWARM_NAME
+  configure_swarm_node $SWARM_NAME
 }
 
 START_TIME=$SECONDS
@@ -69,42 +96,21 @@ save_image "webapp:latest" "../img/webapp.img"
 
 #
 echo Create and configure 'consul'
-docker-machine create -d virtualbox consul
-export KV_IP=$(docker-machine ip consul)
+docker-machine create \
+  -d virtualbox \
+    --virtualbox-memory=512 \
+    --virtualbox-disk-size=5000 \
+  consul
 eval "$(docker-machine env consul)"
 load_image "../img/consul-server.img" "gliderlabs/consul-server:latest"
-docker run -d -p "${KV_IP}:8500:8500" -h consul --restart always gliderlabs/consul-server -bootstrap
+docker run -d -p "$(docker-machine ip consul):8500:8500" -h consul --restart always gliderlabs/consul-server -bootstrap
 
-#
-echo Create and configure Swarm master
-eval "$(docker-machine env -u)"
-docker-machine create \
-  -d virtualbox \
-  --swarm \
-  --swarm-master \
-  --swarm-discovery="consul://${KV_IP}:8500" \
-  --engine-opt="cluster-store=consul://${KV_IP}:8500" \
-  --engine-opt="cluster-advertise=eth1:2376" \
-  master
-export MASTER_IP=$(docker-machine ip master)
-configure_swarm_node "master" ${MASTER_IP} ${KV_IP}
-
-#
-echo Create and configure Swarm slave1
-eval "$(docker-machine env -u)"
-docker-machine create \
-  -d virtualbox \
-  --swarm \
-  --swarm-discovery="consul://${KV_IP}:8500" \
-  --engine-opt="cluster-store=consul://${KV_IP}:8500" \
-  --engine-opt="cluster-advertise=eth1:2376" \
-  slave1
-export SLAVE1_IP=$(docker-machine ip slave1)
-configure_swarm_node "slave1" ${SLAVE1_IP} ${KV_IP}
+create_and_configure_swarm_node 1 1
+create_and_configure_swarm_node 2 1
 
 #
 echo Create overlay network on Swarm cluster
-eval $(docker-machine env --swarm master)
+eval $(docker-machine env --swarm master1)
 docker network create --driver overlay --subnet=10.0.9.0/24 my-overlay
 docker network ls
 
