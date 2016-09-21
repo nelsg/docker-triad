@@ -31,6 +31,8 @@ Exemples
 conteneurs
 * 03: Idem 02 avec cette fois l'utilisation d'un service discovery pour
 configurer le load-balancer
+TODO:
+* 04: Idem 03 mais avec un docker registry
 
 Références
 ----------
