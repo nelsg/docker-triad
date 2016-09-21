@@ -1,18 +1,11 @@
 Construction d'un cluster Swarm puis load-balancer, webapp et base redis
 ========================================================================
 
-> Vous pouvez utiliser le script `env-create.sh` pour créer les machines.
-
-> ATTENTION: dans ce cas il faut définir manuellement les variable KV_IP:
-```
-export KV_IP=$(docker-machine ip consul)
-```
-
 hôtes utilisés:
 * _consul_: il embarque le conteneur _consul-server_, un 'key-store' qui est
 utilisé par Swarm pour faire communiquer et synchroniser ses noeuds
-* _master_: le noeud maitre du cluster swarm
-* _slave1_: un des noeuds esclave du cluster swarm
+* _master1_: le noeud maitre du cluster swarm
+* _slave1_: le noeud esclave du cluster swarm
 
 images utilisées:
 * _nginx_: load balancer, il est notifié par _consul-server_ dès qu'un
@@ -134,8 +127,8 @@ Pour lister les machines:
 docker-machine ls
 ```
 
-Exécuter l'application avec load-balancer
------------------------------------------
+Exécution
+---------
 
 ```
 docker-compose up -d
