@@ -37,27 +37,24 @@ function load_image() {
   fi
 }
 
-# Configure a Swarm by installing 'registrator' and needed images
-# $1 machine name
-function configure_swarm_node() {
-  eval $(docker-machine env $1)
-  load_image "../img/registrator.img" "gliderlabs/registrator:v6"
-  load_image "../img/redis.img" "redis:latest"
-  load_image "../img/webapp.img" "webapp:latest"
-  load_image "../img/nginx-lb.img" "nginx/lb:latest"
-  docker run -d \
-    --name=registrator \
-    -h $(docker-machine ip $1) \
-    --volume=/var/run/docker.sock:/tmp/docker.sock \
-    gliderlabs/registrator:v6 \
-    consul://$(docker-machine ip consul):8500
+function backup_all_needed_images() {
+  #
+  echo Create image backup
+  if [ ! -d ../img ]; then
+    mkdir -p ../img;
+  fi
+  eval "$(docker-machine env -u)"
+  save_image "gliderlabs/consul-server:latest" "../img/consul-server.img"
+  save_image "nginx/lb:latest" "../img/nginx-lb.img"
+  save_image "redis:latest" "../img/redis.img"
+  save_image "gliderlabs/registrator:v6" "../img/registrator.img"
+  save_image "webapp:latest" "../img/webapp.img"
 }
 
 # Create a swarm node
 # $1: 1=master else slave
 # $2: id
-function create_and_configure_swarm_node()
-{
+function create_and_configure_swarm_node() {
   # Build docker-machine options and node name
   SWARM_NAME="slave"
   SWARM_OPTS="--swarm"
@@ -77,42 +74,63 @@ function create_and_configure_swarm_node()
     --engine-opt="cluster-store=consul://$(docker-machine ip consul):8500" \
     --engine-opt="cluster-advertise=eth1:2376" \
     $SWARM_NAME
-  configure_swarm_node $SWARM_NAME
+  eval $(docker-machine env $SWARM_NAME)
+  # Preload images
+  load_image "../img/registrator.img" "gliderlabs/registrator:v6"
+  load_image "../img/redis.img" "redis:latest"
+  load_image "../img/webapp.img" "webapp:latest"
+  load_image "../img/nginx-lb.img" "nginx/lb:latest"
+  # Run registrator container
+  docker run -d \
+    --name=registrator \
+    -h $(docker-machine ip $SWARM_NAME) \
+    --volume=/var/run/docker.sock:/tmp/docker.sock \
+    gliderlabs/registrator:v6 \
+    consul://$(docker-machine ip consul):8500
+  eval "$(docker-machine env -u)"
+}
+
+# Create a swarm master node
+# $1: master id
+function create_and_configure_swarm_master_node() {
+  create_and_configure_swarm_node 1 $1
+}
+
+# Create a swarm slave node
+# $1: slave id
+function create_and_configure_swarm_slave_node() {
+  create_and_configure_swarm_node 2 $1
+}
+
+# Create a consul host
+function create_and_configure_consul_host() {
+  echo Create and configure 'consul'
+  docker-machine create \
+    -d virtualbox \
+      --virtualbox-memory=512 \
+      --virtualbox-disk-size=5000 \
+    consul
+  eval "$(docker-machine env consul)"
+  load_image "../img/consul-server.img" "gliderlabs/consul-server:latest"
+  docker run -d -p "$(docker-machine ip consul):8500:8500" -h consul --restart always gliderlabs/consul-server -bootstrap
+  eval $(docker-machine env -u)
+}
+
+#
+function create_overlay_network() {
+  echo Create overlay network on Swarm cluster
+  eval $(docker-machine env --swarm master1)
+  docker network create --driver overlay --subnet=10.0.9.0/24 my-overlay
+  eval $(docker-machine env -u)
 }
 
 START_TIME=$SECONDS
 
-#
-echo Create image backup
-if [ ! -d ../img ]; then
-  mkdir -p ../img;
-fi
-eval "$(docker-machine env -u)"
-save_image "gliderlabs/consul-server:latest" "../img/consul-server.img"
-save_image "nginx/lb:latest" "../img/nginx-lb.img"
-save_image "redis:latest" "../img/redis.img"
-save_image "gliderlabs/registrator:v6" "../img/registrator.img"
-save_image "webapp:latest" "../img/webapp.img"
-
-#
-echo Create and configure 'consul'
-docker-machine create \
-  -d virtualbox \
-    --virtualbox-memory=512 \
-    --virtualbox-disk-size=5000 \
-  consul
-eval "$(docker-machine env consul)"
-load_image "../img/consul-server.img" "gliderlabs/consul-server:latest"
-docker run -d -p "$(docker-machine ip consul):8500:8500" -h consul --restart always gliderlabs/consul-server -bootstrap
-
-create_and_configure_swarm_node 1 1
-create_and_configure_swarm_node 2 1
-
-#
-echo Create overlay network on Swarm cluster
-eval $(docker-machine env --swarm master1)
-docker network create --driver overlay --subnet=10.0.9.0/24 my-overlay
-docker network ls
+backup_all_needed_images
+create_and_configure_consul_host
+create_and_configure_swarm_master_node 1
+create_and_configure_swarm_slave_node 1
+create_overlay_network
 
 ELAPSED_TIME=$(($SECONDS - $START_TIME))
 echo "Elapsed time=${ELAPSED_TIME}s"
