@@ -9,9 +9,10 @@ redis = Redis(host="redis", port=6379)
 host = socket.gethostname()
 
 @app.route('/')
-def hello() :
+def hello():
     redis.incr('hits')
-    return 'Hello World! I have been seen %s times.\nMy Host name is %s\n\n' % (redis.get('hits'), host)
+    return '''Hello World! I have been seen %s times.\n
+    My Host name is %s\n\n''' % (redis.get('hits'), host)
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", debug=True)
