@@ -51,6 +51,26 @@ function backup_all_needed_images() {
   save_image "webapp:latest" "../img/webapp.img"
 }
 
+# Create a node
+# $1: name
+function create_and_configure_node() {
+  # Build docker-machine options and node name
+  NODE_NAME=$1
+  echo "Create node $NODE_NAME"
+  eval "$(docker-machine env -u)"
+  docker-machine create \
+    -d virtualbox \
+      --virtualbox-memory=512 \
+      --virtualbox-disk-size=5000 \
+    $NODE_NAME
+  eval $(docker-machine env $NODE_NAME)
+  # Preload images
+  load_image "../img/redis.img" "redis:latest"
+  load_image "../img/webapp.img" "webapp:latest"
+  load_image "../img/nginx-lb.img" "nginx/lb:latest"
+  eval "$(docker-machine env -u)"
+}
+
 # Create a swarm node
 # $1: 1=master else slave
 # $2: id
